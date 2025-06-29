@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced File Upload & JSON Editor</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        /* Custom styles for the tree view */
+        .tree details {
+            padding-left: 1.5rem;
+            border-left: 1px solid #e5e7eb;
+        }
+        .tree summary {
+            cursor: pointer;
+            font-weight: 500;
+            padding: 0.25rem 0.5rem;
+            border-radius: 0.375rem;
+            transition: background-color 0.2s ease-in-out;
+        }
+        .tree summary:hover {
+            background-color: #f3f4f6;
+        }
+        .tree .leaf-node {
+            padding-left: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-top: 0.25rem;
+        }
+        .tree .key {
+            font-weight: 500;
+            color: #4b5563;
+        }
+        .tree .value {
+            color: #1f2937;
+        }
+        .tree .value-string { color: #2563eb; }
+        .tree .value-number { color: #db2777; }
+        .tree .value-boolean { color: #16a34a; }
+
+        /* Custom file input button */
+        .file-input-button {
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        /* Spinner animation */
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        .spinner {
+            animation: spin 1s linear infinite;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-800">
+
+    <div class="max-w-6xl mx-auto p-4 sm:p-6 lg:p-8">
+        <header class="mb-8">
+            <h1 class="text-3xl font-bold text-gray-900">Advanced Data Submission Portal</h1>
+            <p class="mt-2 text-gray-600">Upload your files and configuration, review the processed data, and generate the final output.</p>
+        </header>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <!-- Left Column: Form -->
+            <div class="bg-white p-6 rounded-lg shadow-md">
+                <form id="upload-form" class="space-y-6">
+                    <h2 class="text-xl font-semibold border-b pb-3 mb-4">1. Configuration & Files</h2>
+
+                    <!-- Text Fields -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label for="templateName" class="block text-sm font-medium text-gray-700">Template Name</label>
+                            <input type="text" id="templateName" name="templateName" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm" value="MyInvoiceTemplate">
+                        </div>
+                        <div>
+                            <label for="rootClassName" class="block text-sm font-medium text-gray-700">Root Class Name</label>
+                            <input type="text" id="rootClassName" name="rootClassName" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm" value="com.example.Invoice">
+                        </div>
+                        <div>
+                            <label for="messageTypeKey" class="block text-sm font-medium text-gray-700">Message Type Key</label>
+                            <input type="text" id="messageTypeKey" name="messageTypeKey" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm" value="InvoiceProcessed">
+                        </div>
+                         <div>
+                            <label for="messageTypeBody" class="block text-sm font-medium text-gray-700">Message Type Body</label>
+                            <input type="text" id="messageTypeBody" name="messageTypeBody" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm" value="InvoiceData">
+                        </div>
+                    </div>
+
+                    <!-- File Uploads -->
+                    <div class="space-y-4">
+                        <!-- Multiple Files -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Source Files (Multiple)</label>
+                            <label for="files" class="file-input-button bg-gray-100 text-gray-700 font-medium py-2 px-4 rounded-md border border-gray-300 hover:bg-gray-200 transition-colors">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM6.293 6.707a1 1 0 010-1.414l3-3a1 1 0 011.414 0l3 3a1 1 0 01-1.414 1.414L11 5.414V13a1 1 0 11-2 0V5.414L7.707 6.707a1 1 0 01-1.414 0z" clip-rule="evenodd" /></svg>
+                                <span>Choose Files</span>
+                            </label>
+                            <input type="file" id="files" name="files" class="hidden" multiple>
+                            <div id="files-list" class="mt-2 text-sm text-gray-500">No files selected.</div>
+                        </div>
+
+                        <!-- Single File -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Sample File (Single)</label>
+                             <label for="sampleFile" class="file-input-button bg-gray-100 text-gray-700 font-medium py-2 px-4 rounded-md border border-gray-300 hover:bg-gray-200 transition-colors">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 111.414-1.414L9 9.586V4a1 1 0 011-1z" clip-rule="evenodd" /><path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clip-rule="evenodd" /></svg>
+                                <span>Choose File</span>
+                            </label>
+                            <input type="file" id="sampleFile" name="sampleFile" class="hidden">
+                            <div id="sampleFile-list" class="mt-2 text-sm text-gray-500">No file selected.</div>
+                        </div>
+                    </div>
+                    
+                    <!-- Submit Button -->
+                    <div class="pt-4 border-t">
+                        <button type="submit" id="submit-btn" class="w-full inline-flex justify-center items-center px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                           <span id="submit-btn-text">Submit & Process</span>
+                           <svg id="submit-spinner" class="spinner h-5 w-5 ml-3 text-white hidden" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Right Column: Response & Generate -->
+            <div class="bg-white p-6 rounded-lg shadow-md">
+                <h2 class="text-xl font-semibold border-b pb-3 mb-4">2. Processed Data Viewer</h2>
+                <div id="response-container" class="mt-4 text-sm">
+                    <div id="placeholder" class="text-center text-gray-500 py-16">
+                         <svg xmlns="http://www.w3.org/2000/svg" class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1">
+                          <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                        <p class="mt-4">Processed JSON data will appear here.</p>
+                    </div>
+                </div>
+
+                <div class="pt-4 mt-6 border-t">
+                     <button id="generate-btn" class="w-full inline-flex justify-center items-center px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:bg-gray-400 disabled:cursor-not-allowed" disabled>
+                       <span id="generate-btn-text">Generate Output</span>
+                       <svg id="generate-spinner" class="spinner h-5 w-5 ml-3 text-white hidden" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Status/Message modal -->
+        <div id="message-modal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+            <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+                <div class="mt-3 text-center">
+                    <h3 id="modal-title" class="text-lg leading-6 font-medium text-gray-900"></h3>
+                    <div class="mt-2 px-7 py-3">
+                        <p id="modal-message" class="text-sm text-gray-500"></p>
+                    </div>
+                    <div class="items-center px-4 py-3">
+                        <button id="modal-close-btn" class="px-4 py-2 bg-indigo-500 text-white text-base font-medium rounded-md w-full shadow-sm hover:bg-indigo-600 focus:outline-none focus:ring-2 focus:ring-indigo-300">
+                            Close
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // --- DOM Element References ---
+            const form = document.getElementById('upload-form');
+            const filesInput = document.getElementById('files');
+            const filesList = document.getElementById('files-list');
+            const sampleFileInput = document.getElementById('sampleFile');
+            const sampleFileList = document.getElementById('sampleFile-list');
+            const responseContainer = document.getElementById('response-container');
+            const placeholder = document.getElementById('placeholder');
+            const generateBtn = document.getElementById('generate-btn');
+            const submitBtn = document.getElementById('submit-btn');
+            
+            // --- Mock Data ---
+            const mockJsonResponse = {
+                "status": "success",
+                "data": {
+                    "processingId": "proc-12345",
+                    "timestamp": 1678886400,
+                    "confidenceScore": 0.987,
+                    "validation": {
+                        "passed": true,
+                        "checks": [
+                            { "name": "format_check", "status": "ok" },
+                            { "name": "schema_check", "status": "ok" }
+                        ]
+                    },
+                    "extractedFields": {
+                        "invoiceNumber": "INV-2023-001",
+                        "transactionId": "987654321", // This is a numeric string
+                        "totalAmount": 1500.75,
+                        "tax": 75.03,
+                        "items": [
+                            { "description": "Product A", "quantity": 2, "price": 500.00 },
+                            { "description": "Service B", "quantity": 1, "price": 425.72 }
+                        ]
+                    }
+                }
+            };
+            
+            let originalJsonData = null;
+
+            // --- Event Listeners ---
+
+            // Update file list for multi-file input
+            filesInput.addEventListener('change', () => {
+                if (filesInput.files.length > 0) {
+                    filesList.textContent = `${filesInput.files.length} file(s) selected: ${Array.from(filesInput.files).map(f => f.name).join(', ')}`;
+                } else {
+                    filesList.textContent = 'No files selected.';
+                }
+            });
+
+            // Update file list for single-file input
+            sampleFileInput.addEventListener('change', () => {
+                if (sampleFileInput.files.length > 0) {
+                    sampleFileList.textContent = `File selected: ${sampleFileInput.files[0].name}`;
+                } else {
+                    sampleFileList.textContent = 'No file selected.';
+                }
+            });
+
+            // Form submission handler
+            form.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                toggleSpinner('submit', true);
+
+                const formData = new FormData(form);
+                
+                // Log form data for debugging
+                console.log("--- Submitting Form Data ---");
+                for (let [key, value] of formData.entries()) {
+                     if (value instanceof File) {
+                        console.log(`${key}: ${value.name} (size: ${value.size} bytes)`);
+                    } else {
+                        console.log(`${key}: ${value}`);
+                    }
+                }
+                console.log("----------------------------");
+
+
+                // MOCK API CALL
+                try {
+                    // In a real application, this would be a fetch call:
+                    // const response = await fetch('/api/upload', { method: 'POST', body: formData });
+                    // const data = await response.json();
+
+                    // Simulating API call delay
+                    await new Promise(resolve => setTimeout(resolve, 1500));
+                    
+                    const data = mockJsonResponse;
+                    originalJsonData = JSON.parse(JSON.stringify(data)); // Deep copy for later use
+                    
+                    showMessage('Success!', 'Data processed successfully. Rendering results...');
+
+                    placeholder.classList.add('hidden');
+                    responseContainer.innerHTML = ''; // Clear previous results
+                    const treeRoot = renderJsonTree(data);
+                    responseContainer.appendChild(treeRoot);
+                    
+                    generateBtn.disabled = false;
+
+                } catch (error) {
+                    console.error('Submission Error:', error);
+                    showMessage('Error', 'Failed to process the request. Check the console for details.');
+                } finally {
+                    toggleSpinner('submit', false);
+                }
+            });
+
+            // Generate button handler
+            generateBtn.addEventListener('click', async () => {
+                if (!originalJsonData) {
+                    showMessage('Error', 'No data to generate from.');
+                    return;
+                }
+                toggleSpinner('generate', true);
+
+                const updatedJson = buildUpdatedJson();
+
+                console.log("--- Sending Updated JSON ---");
+                console.log(JSON.stringify(updatedJson, null, 2));
+                console.log("----------------------------");
+
+                // MOCK "SEND" API CALL
+                try {
+                    // In a real application, this would be:
+                    // const response = await fetch('/api/send', { 
+                    //     method: 'POST', 
+                    //     headers: { 'Content-Type': 'application/json' },
+                    //     body: JSON.stringify(updatedJson) 
+                    // });
+                    // if (!response.ok) throw new Error('Send API failed');
+                    
+                    await new Promise(resolve => setTimeout(resolve, 1000));
+                    
+                    showMessage('Generated!', 'The final JSON has been successfully sent. Check the console to see the payload.');
+                } catch(error) {
+                    console.error('Generate Error:', error);
+                    showMessage('Error', 'Failed to send the updated JSON.');
+                } finally {
+                     toggleSpinner('generate', false);
+                }
+            });
+            
+            // --- Core Logic Functions ---
+            
+            /**
+             * Checks if a string contains only numeric characters (integer or float).
+             * @param {string} str - The string to check.
+             * @returns {boolean} - True if the string is purely numeric.
+             */
+            const isNumericString = (str) => {
+                if (typeof str != "string") return false; // We only process strings!
+                // Use type coercion to parse the entirety of the string and check for validity.
+                // It correctly handles "123" and "123.45" but fails "123a" or "" or " ".
+                return !isNaN(str) && !isNaN(parseFloat(str));
+            }
+
+            /**
+             * Recursively renders a JSON object into a collapsible tree structure.
+             * @param {any} data - The JSON data (object or array) to render.
+             * @param {string} rootName - The name for the root of the tree.
+             * @returns {HTMLElement} - The root element of the rendered tree.
+             */
+            function renderJsonTree(data, rootName = 'Response') {
+                const rootDetails = document.createElement('details');
+                rootDetails.open = true;
+                
+                const rootSummary = document.createElement('summary');
+                rootSummary.textContent = rootName;
+                rootDetails.appendChild(rootSummary);
+
+                const container = document.createElement('div');
+                container.className = 'tree';
+                rootDetails.appendChild(container);
+
+                buildTree(data, container, []);
+                return rootDetails;
+            }
+
+            /**
+             * Helper function to recursively build the tree nodes.
+             * @param {any} node - The current JSON node (object, array, or primitive).
+             * @param {HTMLElement} parentElement - The DOM element to append children to.
+             * @param {Array<string>} path - The current path to the node.
+             */
+            function buildTree(node, parentElement, path) {
+                for (const key in node) {
+                    if (Object.prototype.hasOwnProperty.call(node, key)) {
+                        const value = node[key];
+                        const currentPath = [...path, key];
+                        
+                        if (value !== null && typeof value === 'object') {
+                            const details = document.createElement('details');
+                            details.open = true;
+                            
+                            const summary = document.createElement('summary');
+                            summary.textContent = key;
+                            details.appendChild(summary);
+                            
+                            buildTree(value, details, currentPath);
+                            parentElement.appendChild(details);
+                        } else {
+                            const leafNode = createLeafNode(key, value, currentPath);
+                            parentElement.appendChild(leafNode);
+                        }
+                    }
+                }
+            }
+            
+            /**
+             * Creates a single leaf node (key-value pair) in the tree.
+             * @param {string} key - The JSON key.
+             * @param {any} value - The JSON primitive value.
+             * @param {Array<string>} path - The path to this value.
+             * @returns {HTMLElement} - The div element for the leaf node.
+             */
+            function createLeafNode(key, value, path) {
+                const nodeDiv = document.createElement('div');
+                nodeDiv.className = 'leaf-node';
+                
+                const keySpan = document.createElement('span');
+                keySpan.className = 'key';
+                keySpan.textContent = `${key}:`;
+                nodeDiv.appendChild(keySpan);
+
+                const valueSpan = document.createElement('span');
+                valueSpan.className = 'value';
+                valueSpan.textContent = value;
+                
+                const valueType = typeof value;
+                if (valueType === 'string') {
+                    valueSpan.classList.add('value-string');
+                    // Add number styling for visual consistency if string is numeric
+                    if (isNumericString(value)) {
+                        valueSpan.classList.add('value-number');
+                    }
+                } else if (valueType === 'number') {
+                    valueSpan.classList.add('value-number');
+                } else if (valueType === 'boolean') {
+                    valueSpan.classList.add('value-boolean');
+                }
+                
+                nodeDiv.appendChild(valueSpan);
+
+                // Add input fields for numbers OR numeric strings
+                if (valueType === 'number' || isNumericString(value)) {
+                    for (let i = 1; i <= 2; i++) {
+                        const input = document.createElement('input');
+                        input.type = 'number';
+                        input.placeholder = `Value ${i}`;
+                        input.dataset.path = path.join('.');
+                        input.dataset.inputIndex = i;
+                        input.className = 'w-24 text-sm rounded-md border-gray-300 shadow-sm focus:border-pink-500 focus:ring-pink-500';
+                        nodeDiv.appendChild(input);
+                    }
+                }
+
+                return nodeDiv;
+            }
+
+             /**
+             * Constructs the updated JSON object by merging original data with user inputs.
+             * @returns {object} The updated JSON object.
+             */
+            function buildUpdatedJson() {
+                // Create a deep copy to avoid modifying the original data object directly
+                const updatedData = JSON.parse(JSON.stringify(originalJsonData));
+                const inputs = responseContainer.querySelectorAll('input[data-path]');
+
+                inputs.forEach(input => {
+                    const path = input.dataset.path;
+                    const index = input.dataset.inputIndex;
+                    const value = input.value;
+                    
+                    if (value !== '') {
+                        // This is a simplified logic. A real app might need a more robust way
+                        // to handle the new values, e.g., storing them in a specific structure.
+                        // Here, we'll add them to the parent object with a new key.
+                        const pathParts = path.split('.');
+                        const keyToUpdate = pathParts.pop();
+                        
+                        let current = updatedData;
+                        for (const part of pathParts) {
+                            current = current[part];
+                        }
+                        
+                        // Add new key for the input value
+                        const newKey = `${keyToUpdate}_userInput${index}`;
+                        current[newKey] = parseFloat(value);
+                    }
+                });
+
+                return updatedData;
+            }
+
+
+            // --- UI Helper Functions ---
+            
+            /** Shows/hides a spinner and updates button text. */
+            function toggleSpinner(type, show) {
+                const btn = type === 'submit' ? submitBtn : generateBtn;
+                const textEl = document.getElementById(`${type}-btn-text`);
+                const spinnerEl = document.getElementById(`${type}-spinner`);
+                
+                if (show) {
+                    btn.disabled = true;
+                    textEl.classList.add('hidden');
+                    spinnerEl.classList.remove('hidden');
+                } else {
+                    btn.disabled = false;
+                    textEl.classList.remove('hidden');
+                    spinnerEl.classList.add('hidden');
+                    if(type === 'submit') btn.disabled = false;
+                    if(type === 'generate') generateBtn.disabled = (originalJsonData === null);
+
+                }
+            }
+            
+            /** Displays a message in a modal. */
+            function showMessage(title, message) {
+                document.getElementById('modal-title').textContent = title;
+                document.getElementById('modal-message').textContent = message;
+                const modal = document.getElementById('message-modal');
+                modal.classList.remove('hidden');
+                
+                const closeBtn = document.getElementById('modal-close-btn');
+                closeBtn.onclick = () => modal.classList.add('hidden');
+            }
+        });
+    </script>
+</body>
+</html>
